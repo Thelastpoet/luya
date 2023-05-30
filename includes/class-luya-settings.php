@@ -1,5 +1,9 @@
 <?php
 
+if ( !defined( 'ABSPATH' )) {
+    exit; // Exit if accessed directly
+}
+
 class Luya_Settings {
     private $option_name = 'luya_settings';
     private $page_title = 'Luya Settings';
