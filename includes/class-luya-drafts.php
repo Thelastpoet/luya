@@ -81,10 +81,9 @@ class Luya_Drafts {
     // Rewrites a title using OpenAI
     public function rewrite_title(string $title) {
         $title = sanitize_text_field($title);
-        // Provide an instruction to the AI
-        $instruction = "Provide a unique news article title similar to: " . $title;
+        
+        $instruction = "Generate a single, unique alternative title for the following news article, maintaining a news-style tone: " . $title;
 
-        // Generate a new title using the AI
         $new_title = $this->ai_generator->generate_completion($instruction);
 
         // Check if the new title contains quotes
@@ -93,7 +92,6 @@ class Luya_Drafts {
             $new_title = str_replace(['"', '"'], '', $new_title);
         }
 
-        // Return the new title
         return $new_title;
     }
 
