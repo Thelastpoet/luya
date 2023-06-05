@@ -82,7 +82,7 @@ class Luya_Drafts {
     public function rewrite_title(string $title) {
         $title = sanitize_text_field($title);
         
-        $instruction = "Generate a single, unique alternative title for the following news article, maintaining a news-style tone: " . $title;
+        $instruction = "Generate a single, unique, straightforward, and neutral alternative title for the following news article, while maintaining a news-style tone and accurately representing the content of the article: " . $title;
 
         $new_title = $this->ai_generator->generate_completion($instruction);
 
@@ -163,10 +163,12 @@ class Luya_Drafts {
     
         // Split text into paragraphs for each sentence
         foreach($sentences as $sentence) {
-            $new_content .= "<p>{$sentence}.</p>";
+            // Check if sentence already ends with a period, if not append one
+            $sentence = rtrim($sentence, '.') . '.';
+            $new_content .= "<p>{$sentence}</p>";
         }
     
         return $new_content;
-    }
+    }  
     
 }

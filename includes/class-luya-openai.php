@@ -88,7 +88,10 @@ class OpenAIGenerator {
         if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo') {
             // Chat Model
             $messages = array(
-                array("role" => "system", "content" => "You are a professional news writer. Here's a brief of the article you need to write."),
+                array(
+                    "role" => "system", 
+                    "content" => "You are a professional online news writer. Your task is to write the provided article in a unique reporting tone, adding quotes from subjects when necessary. Maintain journalistic standards in your writing."
+                ),
                 array("role" => "user", "content" => $prompt)
             );
             $body = array('messages' => $messages);
@@ -98,13 +101,14 @@ class OpenAIGenerator {
             return $this->generate('completion', array('prompt' => $prompt), $args);
         }
     }
-
+    
     public function generate_summary($draft) {
         $body = array(
             'input' => $draft,
-            'instruction' => "Summarize the news article.",
+            'instruction' => "You're a professional editor with the expertise to condense lengthy news articles into clear, concise summaries. Please summarize the following news article.",
             'model' => 'text-davinci-edit-001',
         );
         return $this->generate('edit', $body);
     }    
+    
 }
