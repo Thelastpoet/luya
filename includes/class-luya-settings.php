@@ -21,7 +21,7 @@ class Luya_Settings {
     }
 
     public function add_options_page() {
-        add_options_page($this->page_title, $this->menu_title, $this->capability, $this->menu_slug, array($this, 'display_settings_page'));
+        add_menu_page($this->page_title, $this->menu_title, $this->capability, $this->menu_slug, array($this, 'display_settings_page'));
     }
 
     public function display_settings_page() { ?>
