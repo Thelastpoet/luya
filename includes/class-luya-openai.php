@@ -1,5 +1,7 @@
 <?php
 
+namespace Luya;
+
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
@@ -55,6 +57,7 @@ class OpenAIGenerator {
                 'top_p' => $this->top_p,
                 'frequency_penalty' => $this->frequency_penalty,
                 'presence_penalty' => $this->presence_penalty,
+                'n' => 1
             );
 
             $args = wp_parse_args($args, $defaults);
@@ -64,25 +67,30 @@ class OpenAIGenerator {
             $request_body = $body;
         }
 
-        $response = wp_safe_remote_post($api_url, array_merge($this->http_args, array('body' => wp_json_encode($request_body))));
+        $response = wp_remote_post($api_url, array_merge($this->http_args, array('body' => wp_json_encode($request_body))));
 
         if (is_wp_error($response)) {
-            return $response->get_error_message();
+            throw new \Exception($response->get_error_message());
         }
 
         $response_body = json_decode(wp_remote_retrieve_body($response), true);
-    
+           
         if (isset($response_body['choices'][0]['text'])) {
             return $response_body['choices'][0]['text'];
         } elseif (isset($response_body['choices'][0]['message']['content'])) {
             return $response_body['choices'][0]['message']['content'];
         }
+
+        throw new \Exception('Unexpected API response');
     }
    
     public function generate_completion($prompt, $args = array()) {
         if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo') {
             // Chat Model
-            $messages = array(array("role" => "user", "content" => $prompt));
+            $messages = array(
+                array("role" => "system", "content" => "You are a professional news writer. Here's a brief of the article you need to write."),
+                array("role" => "user", "content" => $prompt)
+            );
             $body = array('messages' => $messages);
             return $this->generate('chat', $body, $args);
         } else {
@@ -92,11 +100,9 @@ class OpenAIGenerator {
     }
 
     public function generate_summary($draft) {
-        $instruction = "Provide a concise summary for the following: " . $draft;
-
         $body = array(
-            'input' => $instruction,
-            'instruction' => "summarize",
+            'input' => $draft,
+            'instruction' => "Summarize the news article.",
             'model' => 'text-davinci-edit-001',
         );
         return $this->generate('edit', $body);

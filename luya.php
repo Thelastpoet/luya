@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Plugin Name: Luya
  * Plugin URI: https://nabaleka.com
@@ -13,17 +12,22 @@
  * Domain Path: /languages
  */
 
+namespace Luya;
+
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly.
 }
 
-class Luya_Plugin {
+class Luya {
 
     const VERSION = '1.0.0';
-    const PLUGIN_DIR = __DIR__;
-    const PLUGIN_URL = __FILE__;
+    public $PLUGIN_DIR;
+    public $PLUGIN_URL;
 
     public function __construct() {
+        $this->PLUGIN_DIR = plugin_dir_path(__FILE__);
+        $this->PLUGIN_URL = plugin_dir_url(__FILE__);
+
         $this->includes();
         $this->init_hooks();
 
@@ -31,10 +35,10 @@ class Luya_Plugin {
     }
 
     private function includes() {
-        require_once self::PLUGIN_DIR . '/includes/class-luya-openai.php';
-        require_once self::PLUGIN_DIR . '/includes/class-luya-settings.php';
-        require_once self::PLUGIN_DIR . '/includes/class-luya-drafts.php';
-        require_once self::PLUGIN_DIR . '/includes/class-luya-publisher.php';
+        require_once $this->PLUGIN_DIR . 'includes/class-luya-openai.php';
+        require_once $this->PLUGIN_DIR . 'includes/class-luya-settings.php';
+        require_once $this->PLUGIN_DIR . 'includes/class-luya-drafts.php';
+        require_once $this->PLUGIN_DIR . 'includes/class-luya-publisher.php';
     }
 
     private function init_hooks() {
@@ -47,26 +51,51 @@ class Luya_Plugin {
     }
 
     public function init() {
-        // Settings
         $luya_settings = new Luya_Settings();
     }
 
     public function cron_callback() {
+        $this->log("Cron job started.");
+        
         $ai_generator = new OpenAIGenerator();
         $luya_drafts = new Luya_Drafts($ai_generator);
         $luya_publisher = new Luya_Publisher($luya_drafts);
         $drafts = $luya_drafts->fetch_drafts();
-
+        
+        if(empty($drafts)) {
+            $this->log("No drafts found.");
+            return;
+        }
+        
         foreach ($drafts as $draft) {
-            // Get the draft's author ID
             $current_user_id = $draft->post_author;
+    
+            // Check if the post author can publish posts
+            $user = get_userdata($current_user_id);
+            if (in_array('author', (array) $user->roles) || in_array('editor', (array) $user->roles) || in_array('administrator', (array) $user->roles)) {
+                $summary = $luya_drafts->summarize_post($draft->ID);
+                $luya_drafts->rewrite_and_update_title($draft->ID);
+                $luya_drafts->update_content($draft->ID, $summary);
+                $luya_publisher->edit_and_publish_post($draft->ID, $current_user_id);
+                $this->log("Draft ID {$draft->ID} processed.");
+            } else {
+                $this->log("The author of draft ID {$draft->ID} does not have the capability to publish posts.");
+            }
+        }
+        
+        $this->log("Cron job ended.");
+    }    
 
-            $summary = $luya_drafts->summarize_post($draft->ID);
-            $luya_drafts->rewrite_and_update_title($draft->ID);
-            $luya_drafts->update_content($draft->ID, $summary);
-            $luya_publisher->edit_and_publish_post($draft->ID, $current_user_id);
+    public function log($message) {
+        if (WP_DEBUG === true) {
+            if (is_array($message) || is_object($message)) {
+                error_log(print_r($message, true));
+            } else {
+                error_log($message);
+            }
         }
     }
+    
 }
 
-new Luya_Plugin();
+new Luya();

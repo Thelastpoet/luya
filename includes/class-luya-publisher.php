@@ -1,5 +1,9 @@
 <?php
 
+namespace Luya;
+
+use Luya\Luya_Drafts;
+
 if ( !defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
@@ -11,7 +15,7 @@ class Luya_Publisher {
         $this->drafts = $drafts;
     }
 
-    public function edit_and_publish_post($post_id) {
+    public function edit_and_publish_post(int $post_id) {
         // Edit the post with OpenAI
         $edit = $this->drafts->edit_post($post_id);
         if($edit) {
