@@ -126,21 +126,47 @@ class Luya_Drafts {
     }
 
     public function format_content(string $content) {
-        // Split text by full stops
-        $sentences = explode('.', $content);
-        
-        // Remove empty elements
-        $sentences = array_filter($sentences);
-        
+        // Explode text by line breaks
+        $lines = explode("\n", $content);
+    
+        // Initialize an empty array for the sentences
+        $sentences = array();
+    
+        // Iterate over lines to find sentences
+        foreach($lines as $line) {
+            // Remove leading/trailing white spaces
+            $line = trim($line);
+    
+            // Check if the line is empty
+            if ($line === '') {
+                continue;
+            }
+    
+            // Break line into sentences based on rules
+            $line_sentences = preg_split('/(?<=[.!?])(?!\.\.\.)(?=\s+[A-Z])/i', $line);
+    
+            // Remove sentences that have less than two words unless they are the last sentence in a line
+            foreach ($line_sentences as $index => $sentence) {
+                $sentence = trim($sentence);
+                $words = explode(" ", $sentence);
+    
+                if (count($words) <= 1 && $index !== count($line_sentences) - 1) {
+                    continue;
+                }
+    
+                $sentences[] = $sentence;
+            }
+        }
+    
         // Initialize an empty string for the new content
         $new_content = '';
-        
-        // Split text into paragraphs every 1 sentences
-        for ($i = 0; $i < count($sentences); $i+=1) {
-            $paragraph = implode('.', array_slice($sentences, $i, 1));
-            $new_content .= "<p>{$paragraph}.</p>";
+    
+        // Split text into paragraphs for each sentence
+        foreach($sentences as $sentence) {
+            $new_content .= "<p>{$sentence}.</p>";
         }
-        
+    
         return $new_content;
-    }    
+    }
+    
 }
