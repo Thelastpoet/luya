@@ -82,10 +82,16 @@ class Luya_Drafts {
     public function rewrite_title(string $title) {
         $title = sanitize_text_field($title);
         // Provide an instruction to the AI
-        $instruction = "Provide a unique title similar to: " . $title;
+        $instruction = "Provide a unique news article title similar to: " . $title;
 
         // Generate a new title using the AI
         $new_title = $this->ai_generator->generate_completion($instruction);
+
+        // Check if the new title contains quotes
+        if (strpos($new_title, '"') !== false || strpos($new_title, '"') !== false) {
+            // Remove quotes from the new title
+            $new_title = str_replace(['"', '"'], '', $new_title);
+        }
 
         // Return the new title
         return $new_title;
@@ -131,7 +137,7 @@ class Luya_Drafts {
         // Initialize an empty string for the new content
         $new_content = '';
         
-        // Split text into paragraphs every 3 sentences
+        // Split text into paragraphs every 1 sentences
         for ($i = 0; $i < count($sentences); $i+=1) {
             $paragraph = implode('.', array_slice($sentences, $i, 1));
             $new_content .= "<p>{$paragraph}.</p>";
