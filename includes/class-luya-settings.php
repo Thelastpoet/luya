@@ -14,6 +14,7 @@ class Luya_Settings {
     private $capability = 'manage_options';
     private $menu_slug = 'luya-settings';
     private $settings = array();
+    private $icon_url = 'dashicons-welcome-write-blog';
 
     public function __construct() {
         add_action('admin_menu', array($this, 'add_options_page'));
@@ -21,7 +22,7 @@ class Luya_Settings {
     }
 
     public function add_options_page() {
-        add_menu_page($this->page_title, $this->menu_title, $this->capability, $this->menu_slug, array($this, 'display_settings_page'));
+        add_menu_page($this->page_title, $this->menu_title, $this->capability, $this->menu_slug, array($this, 'display_settings_page'), $this->icon_url);
     }
 
     public function display_settings_page() { ?>
