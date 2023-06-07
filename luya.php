@@ -62,10 +62,10 @@
         $ai_generator = new OpenAIGenerator();
         $luya_drafts = new Luya_Drafts($ai_generator);
         $luya_publisher = new Luya_Publisher($luya_drafts);
-        $drafts = $luya_drafts->fetch_drafts();
+        $drafts = $luya_drafts->luya_fetch_posts();
          
         if(empty($drafts)) {
-            error_log("No drafts found.");
+            error_log("No drafts or pending posts found.");
             return;
         }
          

@@ -16,11 +16,11 @@ class Luya_Drafts {
         $this->ai_generator = $ai_generator;
     }
 
-    // Fetches all draft posts
-    public function fetch_drafts() {
+    // Fetches all draft or pending posts
+    public function luya_fetch_posts() {
         $args = array(
-            'post_status' => 'draft',
-            'posts_per_page' => -1, // fetch all drafts
+            'post_status' => array('draft', 'pending'),
+            'posts_per_page' => -1,
         );
 
         $query = new WP_Query($args);
@@ -38,6 +38,12 @@ class Luya_Drafts {
     public function update_content(int $post_id, string $new_content) {
         $post_id = intval($post_id);
         $new_content = sanitize_text_field($new_content);
+
+        // Check if the new content is valid
+        if ( !this->is_content_valid($new_content) ) {
+            return false;
+        }
+
         $formatted_content = $this->format_content($new_content);
         $this->update_post($post_id, array('post_content' => $formatted_content));
     }   
@@ -53,6 +59,7 @@ class Luya_Drafts {
     private function update_post(int $post_id, array $data) {
         $post_id = intval($post_id);
         $data['ID'] = $post_id;
+
         wp_update_post($data, true);
 
         if (is_wp_error($post_id)) {
@@ -92,6 +99,8 @@ class Luya_Drafts {
             $new_title = str_replace(['"', '"'], '', $new_title);
         }
 
+        $new_title = mb_convert_case($new_title, MB_CASE_TITLE, "UTF-8");
+
         return $new_title;
     }
 
@@ -120,7 +129,14 @@ class Luya_Drafts {
         if ($post) {
             // Generate a completion using the post content as the prompt
             $edit = $this->ai_generator->generate_completion($post->post_content);
-            return $edit;
+
+            // Check if the generated content is valid
+            if (!$this->is_content_valid($edit)) {
+                // The content is not valid, so return false
+                return false;
+            }
+
+            return $edit; // Return the valid content
         }
         return false;
     }
@@ -171,4 +187,14 @@ class Luya_Drafts {
         return $new_content;
     }  
     
+    // Checks if the generated content is valid
+    public function is_content_valid(string $content) {
+        // Check for minimym number of sentences
+        $sentences = preg_split('/(?<=[.!?])(?!\.\.\.)(?=\s+[A-Z])/i', $content);
+        if (count($sentences) < 3) {
+            return false;
+        }
+
+        return true;
+    }
 }
