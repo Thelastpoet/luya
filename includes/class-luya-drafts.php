@@ -38,12 +38,6 @@ class Luya_Drafts {
     public function update_content(int $post_id, string $new_content) {
         $post_id = intval($post_id);
         $new_content = sanitize_text_field($new_content);
-
-        // Check if the new content is valid
-        if ( !this->is_content_valid($new_content) ) {
-            return false;
-        }
-
         $formatted_content = $this->format_content($new_content);
         $this->update_post($post_id, array('post_content' => $formatted_content));
     }   
@@ -101,6 +95,9 @@ class Luya_Drafts {
 
         $new_title = mb_convert_case($new_title, MB_CASE_TITLE, "UTF-8");
 
+        // Remove trailing period if exists
+        $new_title = rtrim($new_title, '.');
+        
         return $new_title;
     }
 
@@ -129,14 +126,7 @@ class Luya_Drafts {
         if ($post) {
             // Generate a completion using the post content as the prompt
             $edit = $this->ai_generator->generate_completion($post->post_content);
-
-            // Check if the generated content is valid
-            if (!$this->is_content_valid($edit)) {
-                // The content is not valid, so return false
-                return false;
-            }
-
-            return $edit; // Return the valid content
+            return $edit;
         }
         return false;
     }
@@ -185,16 +175,5 @@ class Luya_Drafts {
         }
     
         return $new_content;
-    }  
-    
-    // Checks if the generated content is valid
-    public function is_content_valid(string $content) {
-        // Check for minimym number of sentences
-        $sentences = preg_split('/(?<=[.!?])(?!\.\.\.)(?=\s+[A-Z])/i', $content);
-        if (count($sentences) < 3) {
-            return false;
-        }
-
-        return true;
-    }
+    }    
 }
