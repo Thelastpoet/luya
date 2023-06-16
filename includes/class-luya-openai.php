@@ -85,7 +85,7 @@ class OpenAIGenerator {
     }
    
     public function generate_completion($prompt, $args = array()) {
-        if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo') {
+        if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo' || $this->model == 'gpt-4-32k' || $this->model == 'gpt-3.5-turbo-16k') {
             // Chat Model
             $messages = array(
                 array(
@@ -101,14 +101,26 @@ class OpenAIGenerator {
             return $this->generate('completion', array('prompt' => $prompt), $args);
         }
     }
-    
+
     public function generate_summary($draft) {
-        $body = array(
-            'input' => $draft,
-            'instruction' => "You're a professional editor with the expertise to condense lengthy news articles into clear, concise summaries. Please summarize the following news article.",
-            'model' => 'text-davinci-edit-001',
-        );
-        return $this->generate('edit', $body);
-    }    
-    
+        // Create a standard instruction
+        $instruction = "You're a professional editor with the expertise to condense lengthy news articles into clear, concise summaries. Please preserve any statistics, names, and key facts from the original content.";
+
+        if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo' || $this->model == 'gpt-4-32k' || $this->model == 'gpt-3.5-turbo-16k') {
+            // Chat Model
+            $messages = array(
+                array(
+                    "role" => "system", 
+                    "content" => $instruction
+                ),
+                array("role" => "user", "content" => $draft)
+            );
+            $body = array('messages' => $messages);
+            return $this->generate('chat', $body);
+        } else {
+            // Traditional model: use draft as prompt
+            $prompt = $instruction . " Here's the original article: " . $draft;
+            return $this->generate('completion', array('prompt' => $prompt));
+        }
+    }
 }

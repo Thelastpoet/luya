@@ -5,7 +5,7 @@ namespace Luya;
 use Luya\OpenAIGenerator;
 use WP_Query;
 
-if ( !defined('ABSPATH')) {
+if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
 }
 
@@ -25,28 +25,71 @@ class Luya_Drafts {
 
         $query = new WP_Query($args);
 
-        return $query->posts;
+        return $query->posts ? $query->posts[0] : null;
     }
 
-    // Deletes the content of a post
-    public function delete_content(int $post_id) {
+    // Process the drafts
+    public function process_drafts($draft) {
+        $current_user_id = $draft->post_author;
+
+        if (!$this->user_can_publish($current_user_id)) {
+            error_log("User {$current_user_id} is not allowed to publish posts.");
+            return;
+        }
+
+        error_log("User {$current_user_id} is allowed to publish posts.");
+
+        $summary = $this->summarize_post($draft->ID);
+        $this->rewrite_and_update_title($draft->ID);
+        $this->update_content($draft->ID, $summary);
+        $this->publish_post($draft->ID);
+    }
+
+    // Summarizes a post using OpenAI
+    public function summarize_post(int $post_id) {
         $post_id = intval($post_id);
-        $this->update_post($post_id, array('post_content' => ''));
+        $post = get_post($post_id);
+        if ($post) {
+            $summary = $this->ai_generator->generate_summary($post->post_content);
+            return $summary;
+        }
+        return false;
     }
 
     // Updates a post with new content
     public function update_content(int $post_id, string $new_content) {
         $post_id = intval($post_id);
-        $new_content = sanitize_text_field($new_content);
-        $formatted_content = $this->format_content($new_content);
-        $this->update_post($post_id, array('post_content' => $formatted_content));
-    }   
+        $new_content = ($new_content);
+        $this->update_post($post_id, array('post_content' => wp_kses_post($new_content)));
+    }
+
+    // Rewrite and update the post title using OpenAI
+    public function rewrite_and_update_title(int $post_id) {
+        $post_id = intval($post_id);
+        $title = $this->get_title($post_id);
+        $new_title = $this->rewrite_title($title);
+        $this->update_title($post_id, $new_title);
+    }
 
     // Publishes a post
     public function publish_post(int $post_id) {
         $post_id = intval($post_id);
         $current_time = current_time('mysql');
         $this->update_post($post_id, array('post_status' => 'publish', 'post_date' => $current_time, 'post_date_gmt' => get_gmt_from_date($current_time)));
+    }
+
+    // Check if user can publish
+    private function user_can_publish($user_id) {
+        $user = get_userdata($user_id);
+        $roles_that_can_publish = ['author', 'editor', 'administrator'];
+
+        foreach ($roles_that_can_publish as $role) {
+            if (in_array($role, (array)$user->roles)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Updates post data using wp_update_post
@@ -65,24 +108,16 @@ class Luya_Drafts {
     }
 
     // Get the post title
-    public function get_title(int $post_id) {
+    private function get_title(int $post_id) {
         $post_id = intval($post_id);
         $post = get_post($post_id);
         return $post ? $post->post_title : false;
     }
 
-    // Rewrite and update the post title using OpenAI
-    public function rewrite_and_update_title(int $post_id) {
-        $post_id = intval($post_id);
-        $title = $this->get_title($post_id);
-        $new_title = $this->rewrite_title($title);
-        $this->update_title($post_id, $new_title);
-    }
-
     // Rewrites a title using OpenAI
-    public function rewrite_title(string $title) {
+    private function rewrite_title(string $title) {
         $title = sanitize_text_field($title);
-        
+
         $instruction = "Generate a single, unique, straightforward, and neutral alternative title for the following news article, while maintaining a news-style tone and accurately representing the content of the article: " . $title;
 
         $new_title = $this->ai_generator->generate_completion($instruction);
@@ -97,83 +132,14 @@ class Luya_Drafts {
 
         // Remove trailing period if exists
         $new_title = rtrim($new_title, '.');
-        
+
         return $new_title;
     }
 
     // Updates a post with new title
-    public function update_title(int $post_id, string $new_title) {
+    private function update_title(int $post_id, string $new_title) {
         $post_id = intval($post_id);
         $new_title = sanitize_text_field($new_title);
-        $this->update_post($post_id, array('post_title' => $new_title));
+        $this->update_post($post_id, array('post_title' => wp_strip_all_tags($new_title)));
     }
-
-    // Summarizes a post using OpenAI
-    public function summarize_post(int $post_id) {
-        $post_id = intval($post_id);
-        $post = get_post($post_id);
-        if($post) {
-            $summary = $this->ai_generator->generate_summary($post->post_content);
-            return $summary;
-        }
-        return false;
-    }
-
-    // Edits a post using OpenAI
-    public function edit_post(int $post_id) {
-        $post_id = intval($post_id);
-        $post = get_post($post_id);
-        if ($post) {
-            // Generate a completion using the post content as the prompt
-            $edit = $this->ai_generator->generate_completion($post->post_content);
-            return $edit;
-        }
-        return false;
-    }
-
-    public function format_content(string $content) {
-        // Explode text by line breaks
-        $lines = explode("\n", $content);
-    
-        // Initialize an empty array for the sentences
-        $sentences = array();
-    
-        // Iterate over lines to find sentences
-        foreach($lines as $line) {
-            // Remove leading/trailing white spaces
-            $line = trim($line);
-    
-            // Check if the line is empty
-            if ($line === '') {
-                continue;
-            }
-    
-            // Break line into sentences based on rules
-            $line_sentences = preg_split('/(?<=[.!?])(?!\.\.\.)(?=\s+[A-Z])/i', $line);
-    
-            // Remove sentences that have less than two words unless they are the last sentence in a line
-            foreach ($line_sentences as $index => $sentence) {
-                $sentence = trim($sentence);
-                $words = explode(" ", $sentence);
-    
-                if (count($words) <= 1 && $index !== count($line_sentences) - 1) {
-                    continue;
-                }
-    
-                $sentences[] = $sentence;
-            }
-        }
-    
-        // Initialize an empty string for the new content
-        $new_content = '';
-    
-        // Split text into paragraphs for each sentence
-        foreach($sentences as $sentence) {
-            // Check if sentence already ends with a period, if not append one
-            $sentence = rtrim($sentence, '.') . '.';
-            $new_content .= "<p>{$sentence}</p>";
-        }
-    
-        return $new_content;
-    }    
 }

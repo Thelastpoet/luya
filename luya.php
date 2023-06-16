@@ -32,7 +32,9 @@
         $this->includes();
  
         new Luya_Settings();
-        new Luya_Cron();
+        $openai_generator = new OpenAIGenerator();
+        $luya_drafts = new Luya_Drafts($openai_generator);
+        new Luya_Cron($luya_drafts);
     }
  
     private function includes() {
