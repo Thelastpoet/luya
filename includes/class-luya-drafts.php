@@ -4,6 +4,10 @@ namespace Luya;
 
 use Luya\OpenAIGenerator;
 use WP_Query;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\MarkdownConverter;
+
 
 if (!defined('ABSPATH')) {
     exit; // Exit if accessed directly
@@ -18,30 +22,39 @@ class Luya_Drafts {
 
     // Fetches all draft or pending posts
     public function luya_fetch_posts() {
+        $settings = get_option('luya_settings');
+        $categories = isset($settings['luya-categories']) ? $settings['luya-categories'] : array();
+    
         $args = array(
-            'post_status' => array('draft', 'pending'),
-            'posts_per_page' => -1,
+            'post_status' => 'pending',
+            'posts_per_page' => 1,
+            'category__in' => $categories,
         );
-
+    
         $query = new WP_Query($args);
-
+    
         return $query->posts ? $query->posts[0] : null;
-    }
+    }    
 
     // Process the drafts
     public function process_drafts($draft) {
         $current_user_id = $draft->post_author;
 
-        if (!$this->user_can_publish($current_user_id)) {
-            error_log("User {$current_user_id} is not allowed to publish posts.");
-            return;
-        }
-
-        error_log("User {$current_user_id} is allowed to publish posts.");
-
         $summary = $this->summarize_post($draft->ID);
-        $this->rewrite_and_update_title($draft->ID);
-        $this->update_content($draft->ID, $summary);
+       
+        // Write the content using AI from the Summary
+        $full_content = $this->write_content($summary);
+
+        //Separate the title from content
+        $title = $full_content['title'];
+        $content = $full_content['content'];
+
+        // Format the content
+        $formatted_content = $this->format_content($content);
+
+        // Update the post content
+        $this->update_post($draft->ID, $title, $formatted_content, []);
+
         $this->publish_post($draft->ID);
     }
 
@@ -56,90 +69,57 @@ class Luya_Drafts {
         return false;
     }
 
-    // Updates a post with new content
-    public function update_content(int $post_id, string $new_content) {
-        $post_id = intval($post_id);
-        $new_content = ($new_content);
-        $this->update_post($post_id, array('post_content' => wp_kses_post($new_content)));
-    }
+    // write new content from AI API
+    public function write_content($summary) {
+        $content = $this->ai_generator->generate_completion($summary);
 
-    // Rewrite and update the post title using OpenAI
-    public function rewrite_and_update_title(int $post_id) {
-        $post_id = intval($post_id);
-        $title = $this->get_title($post_id);
-        $new_title = $this->rewrite_title($title);
-        $this->update_title($post_id, $new_title);
-    }
+        // Extract the title from the first level 1 heading
+        preg_match('/^#\s+(.*)$/m', $content, $matches);
+        $title = $matches[1];
 
-    // Publishes a post
-    public function publish_post(int $post_id) {
-        $post_id = intval($post_id);
-        $current_time = current_time('mysql');
-        $this->update_post($post_id, array('post_status' => 'publish', 'post_date' => $current_time, 'post_date_gmt' => get_gmt_from_date($current_time)));
-    }
-
-    // Check if user can publish
-    private function user_can_publish($user_id) {
-        $user = get_userdata($user_id);
-        $roles_that_can_publish = ['author', 'editor', 'administrator'];
-
-        foreach ($roles_that_can_publish as $role) {
-            if (in_array($role, (array)$user->roles)) {
-                return true;
-            }
+        if (strpos($title, '*') !== false) {
+            $title = preg_replace('/^\*+|\*+$/', '', $title);
         }
 
-        return false;
+        $content = preg_replace('/^#\s+.*$\n/m', '', $content);
+        
+        return array('title' => $title, 'content' => $content);
     }
 
-    // Updates post data using wp_update_post
-    private function update_post(int $post_id, array $data) {
-        $post_id = intval($post_id);
-        $data['ID'] = $post_id;
+    private function format_content($content) {
+        $environment = new Environment();
+        $environment->addExtension(new CommonMarkCoreExtension());
 
-        wp_update_post($data, true);
+        $converter = new MarkdownConverter($environment);
 
-        if (is_wp_error($post_id)) {
-            $errors = $post_id->get_error_messages();
-            foreach ($errors as $error) {
-                _e($error, 'luya');
-            }
-        }
-    }
+        $formatted_content = $converter->convertToHtml($content);
 
-    // Get the post title
-    private function get_title(int $post_id) {
-        $post_id = intval($post_id);
-        $post = get_post($post_id);
-        return $post ? $post->post_title : false;
-    }
-
-    // Rewrites a title using OpenAI
-    private function rewrite_title(string $title) {
-        $title = sanitize_text_field($title);
-
-        $instruction = "Generate a single, unique, straightforward, and neutral alternative title for the following news article, while maintaining a news-style tone and accurately representing the content of the article: " . $title;
-
-        $new_title = $this->ai_generator->generate_completion($instruction);
-
-        // Check if the new title contains quotes
-        if (strpos($new_title, '"') !== false || strpos($new_title, '"') !== false) {
-            // Remove quotes from the new title
-            $new_title = str_replace(['"', '"'], '', $new_title);
+        if (is_object($formatted_content)) {
+            $formatted_content = (string) $formatted_content;
         }
 
-        $new_title = mb_convert_case($new_title, MB_CASE_TITLE, "UTF-8");
+        return $formatted_content;
+    }    
 
-        // Remove trailing period if exists
-        $new_title = rtrim($new_title, '.');
+    private function update_post($post_id, $title, $content, $args = []) {
+        $post_data = array(
+            'ID' => $post_id,
+            'post_status' => 'draft',
+            'post_type' => 'post',
+            'post_title' => $title,
+            'post_content' => $content,
+        );
+    
+        wp_update_post($post_data);
+    }    
 
-        return $new_title;
-    }
+    private function publish_post($post_id) {
+        $post_data = array(
+            'ID' => $post_id,
+            'post_status' => 'publish'
+        );
+    
+        wp_update_post($post_data);
+    }    
 
-    // Updates a post with new title
-    private function update_title(int $post_id, string $new_title) {
-        $post_id = intval($post_id);
-        $new_title = sanitize_text_field($new_title);
-        $this->update_post($post_id, array('post_title' => wp_strip_all_tags($new_title)));
-    }
 }

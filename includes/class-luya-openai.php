@@ -21,7 +21,7 @@ class OpenAIGenerator {
 
         $this->api_key = isset($settings['luya-openai-api-key']) ? $settings['luya-openai-api-key'] : '';
         $this->model = isset($settings['model']) ? $settings['model'] : 'text-davinci-003';
-        $this->max_tokens = isset($settings['max_tokens']) ? (int) $settings['max_tokens'] : 1000;
+        $this->max_tokens = isset($settings['max_tokens']) ? (int) $settings['max_tokens'] : 5000;
         $this->temperature = isset($settings['temperature']) ? (float) $settings['temperature'] : 0.7;
         $this->top_p = isset($settings['top_p']) ? (float) $settings['top_p'] : 1.0;
         $this->frequency_penalty = isset($settings['frequency_penalty']) ? (float) $settings['frequency_penalty'] : 0.0;
@@ -32,7 +32,7 @@ class OpenAIGenerator {
                 'Content-Type' => 'application/json',
                 'Authorization' => 'Bearer ' . $this->api_key,
             ),
-            'timeout' => 100,
+            'timeout' => 200,
         );
     }
 
@@ -57,7 +57,7 @@ class OpenAIGenerator {
                 'top_p' => $this->top_p,
                 'frequency_penalty' => $this->frequency_penalty,
                 'presence_penalty' => $this->presence_penalty,
-                'n' => 1
+                'n' => 1,
             );
 
             $args = wp_parse_args($args, $defaults);
@@ -90,7 +90,7 @@ class OpenAIGenerator {
             $messages = array(
                 array(
                     "role" => "system", 
-                    "content" => "You are a professional online news writer. Your task is to write the provided article in a unique reporting tone, adding quotes from subjects when necessary. Maintain journalistic standards in your writing."
+                    "content" => "The Assistant is a skilled news journalist. Your task is to craft engaging and SEO-optimized news articles, capturing the essence of events with a unique editorial voice. Incorporate relevant quotes and ensure the content is structured coherently using CommonMark Markdown. Accuracy, clarity, and conciseness are paramount."
                 ),
                 array("role" => "user", "content" => $prompt)
             );

@@ -17,7 +17,7 @@ class Luya_Cron {
     }
 
     public function cron_callback() {
-        // Set that a cron is running and set the value to the time it is running on 
+        // Set that the cron job is running
         update_option('luya_cron_running', time());
         
         $draft = $this->luya_drafts->luya_fetch_posts();

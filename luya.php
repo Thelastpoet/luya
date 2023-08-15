@@ -43,6 +43,8 @@
         require_once $this->PLUGIN_DIR . 'includes/class-luya-drafts.php';
         require_once $this->PLUGIN_DIR . 'includes/class-luya-publisher.php';
         require_once $this->PLUGIN_DIR . 'includes/cron.php';
+
+        require_once $this->PLUGIN_DIR . 'vendor/autoload.php';
     }
 }
  
