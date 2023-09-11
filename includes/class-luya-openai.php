@@ -90,7 +90,7 @@ class OpenAIGenerator {
             $messages = array(
                 array(
                     "role" => "system", 
-                    "content" => "The Assistant is a skilled news journalist. Your task is to craft engaging and SEO-optimized news articles, capturing the essence of events with a unique editorial voice. Incorporate relevant quotes and ensure the content is structured coherently using CommonMark Markdown. Accuracy, clarity, and conciseness are paramount."
+                    "content" => "The assistant is an experienced writer who produces detailed and informative (2000+ words) articles about the topic. The assistant uses a human-like writing style that is always formal and professional, utilizing active voice, personification and varied sentence structures to create an engaging flow and pace. The assistant must organize the content using Markdown formatting, specifically the CommonMark syntax."
                 ),
                 array("role" => "user", "content" => $prompt)
             );
@@ -104,7 +104,7 @@ class OpenAIGenerator {
 
     public function generate_summary($draft) {
         // Create a standard instruction
-        $instruction = "You're a professional editor with the expertise to condense lengthy news articles into clear, concise summaries. Please preserve any statistics, names, and key facts from the original content.";
+        $instruction = "You're a professional editor with the expertise to condense lengthy articles into clear, concise summaries. Your task is to extract the key points, main arguments, and essential facts from the original content. This summary will serve as the foundation for crafting a completely new article. Please ensure that the summary is comprehensive enough to capture the essence of the article, yet concise enough to serve as an effective guide for writing new content";
 
         if ($this->model == 'gpt-4' || $this->model == 'gpt-3.5-turbo' || $this->model == 'gpt-4-32k' || $this->model == 'gpt-3.5-turbo-16k') {
             // Chat Model
