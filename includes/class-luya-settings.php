@@ -100,6 +100,7 @@ class Luya_Settings {
 
         if ($field === 'model') {
             $models = array(
+                'gpt-4-1106-preview' => 'GPT-4 Turbo',
                 'gpt-4-32k' => 'GPT-4 32K',
                 'gpt-4' => 'GPT-4',
                 'gpt-3.5-turbo-16k' => 'GPT-3.5 Turbo 16K',
